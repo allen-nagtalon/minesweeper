@@ -78,8 +78,10 @@ class Cell:
               if grid[self.y + j][self.x + i].type == -1:
                 self.type += 1
 
+
+  # Reveal single cell
   def reveal_cell(self):
-    if not self.clicked:
+    if not self.clicked and not self.flagged:
       self.clicked = True
       if self.type == 0: # If cell is a 0, reveal adjacent cells
         for i in range(-1, 2):
@@ -93,6 +95,27 @@ class Cell:
           if not grid[mine[1]][mine[0]].clicked:
             grid[mine[1]][mine[0]].reveal_cell()
 
+
+  # Sweep cells around a clicked cell
+  def sweep_cell(self):
+    flag_count = 0
+    # Check adjacent cells for flags
+    for i in range(-1, 2):
+        if self.x + i >= 0 and self.x + i < game_width:
+          for j in range(-1, 2):
+            if self.y + j >= 0 and self.y + j < game_height:
+              if grid[self.y + j][self.x + i].flagged:
+                flag_count += 1
+    
+    if flag_count == self.type:
+      for i in range(-1, 2):
+        if self.x + i >= 0 and self.x + i < game_width:
+          for j in range(-1, 2):
+            if self.y + j >= 0 and self.y + j < game_height:
+              if not grid[self.y + j][self.x + i].clicked:
+                if grid[self.y + j][self.x + i].type == -1:
+                  grid[self.y + j][self.x + i].mine_clicked = True
+                grid[self.y + j][self.x + i].reveal_cell()
 
   # Draw cell to window
   def draw_cell(self):
@@ -205,8 +228,8 @@ def gameloop():
                   if cell.type == -1:
                     cell.mine_clicked = True
               elif event.button == 2: # Middle-click
-                
-                pass
+                if cell.clicked:
+                  cell.sweep_cell()
               elif event.button == 3: # Right-click
                 if not cell.clicked:
                   cell.flagged = not cell.flagged
