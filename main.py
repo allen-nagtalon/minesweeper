@@ -11,7 +11,9 @@ game_cell_size = 32 # Width/height of cells
 
 # Display settings
 border = 20
+button_size = 52
 header_height = 104
+inner_header_height = 64
 display_width = (game_width * game_cell_size) + (2 * border)
 display_height = (game_height * game_cell_size) + border + header_height
 display_window = pygame.display.set_mode((display_width, display_height))
@@ -46,8 +48,30 @@ frame_sprites = {
   "bottom_right": pygame.image.load("sprites/frame_bottom_right.png")
 }
 
+face_sprites = {
+  "default": pygame.image.load("sprites/face_default.png"),
+  "pressed": pygame.image.load("sprites/face_pressed.png"),
+  "waiting": pygame.image.load("sprites/face_waiting.png"),
+  "sad": pygame.image.load("sprites/face_sad.png")
+}
+
+# Game state variables
 grid = [] # Grid of cells
 mines = [] # List of tuples for mine locations
+mines_left = game_mines
+
+class Button:
+  def __init__(self):
+    self.state = "default"
+    self.rect = pygame.Rect(
+      (display_width / 2) - (button_size / 2),
+      (inner_header_height / 2) - (button_size / 2) + border,
+      button_size,
+      button_size
+    )
+
+  def draw_button(self):
+    display_window.blit(face_sprites[self.state], self.rect)
 
 class Cell:
   # Class constructor
@@ -200,7 +224,6 @@ def draw_frame():
   display_window.blit(frame_sprites["bottom"], bottom_rect)
   display_window.blit(frame_sprites["bottom_left"], bottom_left_rect)
   display_window.blit(frame_sprites["bottom_right"], bottom_right_rect)
-  
 
 # Draw grid
 def draw_grid():
@@ -208,33 +231,50 @@ def draw_grid():
     for cell in row:
       cell.draw_cell()
 
+def restart():
+
 
 # Main game loop
 def gameloop():
   run = True
+  button = Button()
   generate_grid()
 
   while run:
     for event in pygame.event.get():
       if event.type == pygame.QUIT:
         run = False
+      elif event.type == pygame.MOUSEBUTTONDOWN:
+        if button.rect.collidepoint(event.pos):
+          button.state = "pressed"
+        else:
+          button.state = "default"
+          for row in grid:
+            for cell in row:
+              if cell.rect.collidepoint(event.pos):
+                if event.button == 3: # Right-click
+                  if not cell.clicked:
+                    cell.flagged = not cell.flagged
       elif event.type == pygame.MOUSEBUTTONUP:
-        for row in grid:
-          for cell in row:
-            if cell.rect.collidepoint(event.pos):
-              if event.button == 1: # Left-click
-                if not cell.flagged:
-                  cell.reveal_cell()
-                  if cell.type == -1:
-                    cell.mine_clicked = True
-              elif event.button == 2: # Middle-click
-                if cell.clicked:
-                  cell.sweep_cell()
-              elif event.button == 3: # Right-click
-                if not cell.clicked:
-                  cell.flagged = not cell.flagged
+        if button.rect.collidepoint(event.pos):
+          button.state = "default"
+          generate_grid()
+        else:
+          for row in grid:
+            for cell in row:
+              if cell.rect.collidepoint(event.pos):
+                if event.button == 1: # Left-click
+                  if not cell.flagged:
+                    cell.reveal_cell()
+                    if cell.type == -1:
+                      cell.mine_clicked = True
+                elif event.button == 2: # Middle-click
+                  if cell.clicked:
+                    cell.sweep_cell()
+                
 
     draw_frame()
+    button.draw_button()
     draw_grid()
     pygame.display.update()
 
