@@ -10,8 +10,10 @@ game_mines = 99 # Number of mines
 game_cell_size = 32 # Width/height of cells
 
 # Display settings
-display_width = game_width * game_cell_size
-display_height = game_height * game_cell_size
+border = 20
+header_height = 104
+display_width = (game_width * game_cell_size) + (2 * border)
+display_height = (game_height * game_cell_size) + border + header_height
 display_window = pygame.display.set_mode((display_width, display_height))
 
 pygame.display.set_caption("Minesweeper")
@@ -34,6 +36,16 @@ cell_sprites = {
   "mine": pygame.image.load("sprites/cell_mine.png")
 }
 
+frame_sprites = {
+  "top_left": pygame.image.load("sprites/frame_top_left.png"),
+  "top_right": pygame.image.load("sprites/frame_top_right.png"),
+  "left": pygame.image.load("sprites/frame_left.png"),
+  "right": pygame.image.load("sprites/frame_right.png"),
+  "bottom": pygame.image.load("sprites/frame_bottom.png"),
+  "bottom_left": pygame.image.load("sprites/frame_bottom_left.png"),
+  "bottom_right": pygame.image.load("sprites/frame_bottom_right.png")
+}
+
 grid = [] # Grid of cells
 mines = [] # List of tuples for mine locations
 
@@ -49,8 +61,8 @@ class Cell:
 
     # Drawing variables
     self.rect = pygame.Rect(
-      self.x * game_cell_size, 
-      self.y * game_cell_size, 
+      self.x * game_cell_size + border, 
+      self.y * game_cell_size + header_height, 
       game_cell_size, 
       game_cell_size
     )
@@ -146,6 +158,27 @@ def print_grid():
     print(line_str)
 
 
+# Draw frame
+def draw_frame():
+  # Construct all necessary rects
+  top_left_rect = pygame.Rect(0, 0, display_width, header_height)
+  top_right_rect = pygame.Rect(display_width - border, 0, border, border)
+  left_rect = pygame.Rect(0, header_height, border, display_height - header_height)
+  right_rect = pygame.Rect(display_width - border, header_height, border, display_height - header_height)
+  bottom_rect = pygame.Rect(0, display_height - border, display_width, border)
+  bottom_left_rect = pygame.Rect(0, display_height - border, border, border)
+  bottom_right_rect = pygame.Rect(display_width - border, display_height - border, border, border)
+
+  # Draw to display
+  display_window.blit(frame_sprites["top_left"], top_left_rect)
+  display_window.blit(frame_sprites["top_right"], top_right_rect)
+  display_window.blit(frame_sprites["left"], left_rect)
+  display_window.blit(frame_sprites["right"], right_rect)
+  display_window.blit(frame_sprites["bottom"], bottom_rect)
+  display_window.blit(frame_sprites["bottom_left"], bottom_left_rect)
+  display_window.blit(frame_sprites["bottom_right"], bottom_right_rect)
+  
+
 # Draw grid
 def draw_grid():
   for row in grid:
@@ -155,7 +188,6 @@ def draw_grid():
 
 # Main game loop
 def gameloop():
-  game_state = "Play"
   run = True
   generate_grid()
 
@@ -172,15 +204,14 @@ def gameloop():
                   cell.reveal_cell()
                   if cell.type == -1:
                     cell.mine_clicked = True
-                    game_state = "Lose"
               elif event.button == 2: # Middle-click
                 
                 pass
               elif event.button == 3: # Right-click
-                # Toggle 
                 if not cell.clicked:
                   cell.flagged = not cell.flagged
 
+    draw_frame()
     draw_grid()
     pygame.display.update()
 
