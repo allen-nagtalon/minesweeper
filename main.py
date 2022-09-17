@@ -244,6 +244,9 @@ class Cell:
 
 # Grid generation
 def generate_grid():
+  mines.clear()
+  grid.clear()
+
   # Generate mine locations
   while len(mines) < game_mines:
     x = random.randint(0, game_width - 1)
@@ -313,6 +316,16 @@ def draw_grid():
     for cell in row:
       cell.draw_cell()
 
+# Restart game
+def restart():
+  global mines_left
+  global time
+
+  mines_left = game_mines
+  time = 0
+  generate_grid()
+  
+
 # Main game loop
 def gameloop():
   global time
@@ -342,7 +355,7 @@ def gameloop():
       elif event.type == pygame.MOUSEBUTTONUP:
         if button.rect.collidepoint(event.pos):
           button.state = "default"
-          generate_grid()
+          restart()
         else:
           for row in grid:
             for cell in row:
@@ -356,7 +369,7 @@ def gameloop():
                   if cell.clicked:
                     cell.sweep_cell()
                 
-    if time < 999: # Cap game timer at 999 seconds
+    if time < 999000: # Cap game timer at 999 seconds
       time += timer.get_time()
 
     draw_frame()
