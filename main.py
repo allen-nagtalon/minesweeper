@@ -1,4 +1,5 @@
 import random
+from re import M
 import pygame
 
 pygame.init()
@@ -8,17 +9,71 @@ game_width = 30 # Grid width
 game_height = 16 # Grid height
 game_mines = 99 # Number of mines
 game_cell_size = 32 # Width/height of cells
+timer = pygame.time.Clock()
 
 # Display settings
 border = 20
 button_size = 52
 header_height = 104
+inner_header_spacer = 12
 inner_header_height = 64
+counter_width = 26
+counter_height = 46
 display_width = (game_width * game_cell_size) + (2 * border)
 display_height = (game_height * game_cell_size) + border + header_height
 display_window = pygame.display.set_mode((display_width, display_height))
 
 pygame.display.set_caption("Minesweeper")
+
+# Frame rects
+top_left_rect = pygame.Rect(0, 0, display_width, header_height)
+top_right_rect = pygame.Rect(display_width - border, 0, border, border)
+left_rect = pygame.Rect(0, header_height, border, display_height - header_height)
+right_rect = pygame.Rect(display_width - border, header_height, border, display_height - header_height)
+bottom_rect = pygame.Rect(0, display_height - border, display_width, border)
+bottom_left_rect = pygame.Rect(0, display_height - border, border, border)
+bottom_right_rect = pygame.Rect(display_width - border, display_height - border, border, border)
+
+# Mine count rects
+mine_hund_rect = pygame.Rect(
+  border + inner_header_spacer,
+  border + (inner_header_height / 2) - (counter_height / 2),
+  counter_width,
+  counter_height
+)
+mine_tens_rect = pygame.Rect(
+  border + inner_header_spacer + counter_width,
+  border + (inner_header_height / 2) - (counter_height / 2),
+  counter_width,
+  counter_height
+)
+mine_ones_rect = pygame.Rect(
+  border + inner_header_spacer + (counter_width * 2),
+  border + (inner_header_height / 2) - (counter_height / 2),
+  counter_width,
+  counter_height
+)
+
+# Timer rects
+timer_hund_rect = pygame.Rect(
+  display_width - border - inner_header_spacer - (3 * counter_width),
+  border + (inner_header_height / 2) - (counter_height / 2),
+  counter_width,
+  counter_height
+)
+timer_tens_rect = pygame.Rect(
+  display_width - border - inner_header_spacer - (2 * counter_width),
+  border + (inner_header_height / 2) - (counter_height / 2),
+  counter_width,
+  counter_height
+)
+timer_ones_rect = pygame.Rect(
+  display_width - border - inner_header_spacer - (1 * counter_width),
+  border + (inner_header_height / 2) - (counter_height / 2),
+  counter_width,
+  counter_height
+)
+
 
 # Import sprites
 cell_sprites = {
@@ -56,6 +111,7 @@ face_sprites = {
 }
 
 counter_sprites = {
+  "0": pygame.image.load("sprites/counter/0.png"),
   "1": pygame.image.load("sprites/counter/1.png"),
   "2": pygame.image.load("sprites/counter/2.png"),
   "3": pygame.image.load("sprites/counter/3.png"),
@@ -71,6 +127,7 @@ counter_sprites = {
 grid = [] # Grid of cells
 mines = [] # List of tuples for mine locations
 mines_left = game_mines
+time = 0
 
 class Button:
   def __init__(self):
@@ -219,15 +276,6 @@ def print_grid():
 
 # Draw frame
 def draw_frame():
-  # Construct all necessary rects
-  top_left_rect = pygame.Rect(0, 0, display_width, header_height)
-  top_right_rect = pygame.Rect(display_width - border, 0, border, border)
-  left_rect = pygame.Rect(0, header_height, border, display_height - header_height)
-  right_rect = pygame.Rect(display_width - border, header_height, border, display_height - header_height)
-  bottom_rect = pygame.Rect(0, display_height - border, display_width, border)
-  bottom_left_rect = pygame.Rect(0, display_height - border, border, border)
-  bottom_right_rect = pygame.Rect(display_width - border, display_height - border, border, border)
-
   # Draw to display
   display_window.blit(frame_sprites["top_left"], top_left_rect)
   display_window.blit(frame_sprites["top_right"], top_right_rect)
@@ -237,17 +285,38 @@ def draw_frame():
   display_window.blit(frame_sprites["bottom_left"], bottom_left_rect)
   display_window.blit(frame_sprites["bottom_right"], bottom_right_rect)
 
+# Draw mine counter
+def draw_mine_counter():
+  hund = mines_left // 100
+  tens = (mines_left - (hund * 100)) // 10
+  ones = (mines_left - (hund * 100) - (tens * 10))
+
+  display_window.blit(counter_sprites[str(hund)], mine_hund_rect)
+  display_window.blit(counter_sprites[str(tens)], mine_tens_rect)
+  display_window.blit(counter_sprites[str(ones)], mine_ones_rect)
+
+# Draw timer
+def draw_timer():
+  hund = time // 100000
+  tens = (time - (hund * 100000)) // 10000
+  ones = (time - (hund * 100000) - (tens * 10000)) // 1000
+  #print(str(time) + ": " + str(hund) + str(tens) + str(ones))
+
+  display_window.blit(counter_sprites[str(hund)], timer_hund_rect)
+  display_window.blit(counter_sprites[str(tens)], timer_tens_rect)
+  display_window.blit(counter_sprites[str(ones)], timer_ones_rect)
+
+
 # Draw grid
 def draw_grid():
   for row in grid:
     for cell in row:
       cell.draw_cell()
 
-def restart():
-
-
 # Main game loop
 def gameloop():
+  global time
+  global mines_left
   run = True
   button = Button()
   generate_grid()
@@ -266,7 +335,10 @@ def gameloop():
               if cell.rect.collidepoint(event.pos):
                 if event.button == 3: # Right-click
                   if not cell.clicked:
+                    if cell.flagged: mines_left += 1
+                    else: mines_left -= 1
                     cell.flagged = not cell.flagged
+                    
       elif event.type == pygame.MOUSEBUTTONUP:
         if button.rect.collidepoint(event.pos):
           button.state = "default"
@@ -284,11 +356,17 @@ def gameloop():
                   if cell.clicked:
                     cell.sweep_cell()
                 
+    if time < 999: # Cap game timer at 999 seconds
+      time += timer.get_time()
 
     draw_frame()
     button.draw_button()
+    draw_mine_counter()
+    draw_timer()
     draw_grid()
     pygame.display.update()
+    
+    timer.tick(15)
 
   # Quit once gameloop ends
   pygame.quit()
