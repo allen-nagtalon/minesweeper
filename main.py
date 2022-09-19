@@ -1,28 +1,12 @@
 import random
-from re import M
 import pygame
+from settings import *
+from sprites import *
 
+# Pygame setup
 pygame.init()
-
-# Game settings (Defaulted as "Expert")
-game_width = 30 # Grid width
-game_height = 16 # Grid height
-game_mines = 99 # Number of mines
-game_cell_size = 32 # Width/height of cells
 timer = pygame.time.Clock()
-
-# Display settings
-border = 20
-button_size = 52
-header_height = 104
-inner_header_spacer = 12
-inner_header_height = 64
-counter_width = 26
-counter_height = 46
-display_width = (game_width * game_cell_size) + (2 * border)
-display_height = (game_height * game_cell_size) + border + header_height
 display_window = pygame.display.set_mode((display_width, display_height))
-
 pygame.display.set_caption("Minesweeper")
 
 # Frame rects
@@ -74,60 +58,12 @@ timer_ones_rect = pygame.Rect(
   counter_height
 )
 
-
-# Import sprites
-cell_sprites = {
-  "1": pygame.image.load("sprites/cell/1.png"),
-  "2": pygame.image.load("sprites/cell/2.png"),
-  "3": pygame.image.load("sprites/cell/3.png"),
-  "4": pygame.image.load("sprites/cell/4.png"),
-  "5": pygame.image.load("sprites/cell/5.png"),
-  "6": pygame.image.load("sprites/cell/6.png"),
-  "7": pygame.image.load("sprites/cell/7.png"),
-  "8": pygame.image.load("sprites/cell/8.png"),
-  "default": pygame.image.load("sprites/cell/default.png"),
-  "empty": pygame.image.load("sprites/cell/empty.png"),
-  "flag": pygame.image.load("sprites/cell/flag.png"),
-  "mine_clicked": pygame.image.load("sprites/cell/mine_clicked.png"),
-  "mine_false": pygame.image.load("sprites/cell/mine_false.png"),
-  "mine": pygame.image.load("sprites/cell/mine.png")
-}
-
-frame_sprites = {
-  "top_left": pygame.image.load("sprites/frame/top_left.png"),
-  "top_right": pygame.image.load("sprites/frame/top_right.png"),
-  "left": pygame.image.load("sprites/frame/left.png"),
-  "right": pygame.image.load("sprites/frame/right.png"),
-  "bottom": pygame.image.load("sprites/frame/bottom.png"),
-  "bottom_left": pygame.image.load("sprites/frame/bottom_left.png"),
-  "bottom_right": pygame.image.load("sprites/frame/bottom_right.png")
-}
-
-face_sprites = {
-  "default": pygame.image.load("sprites/face/default.png"),
-  "pressed": pygame.image.load("sprites/face/pressed.png"),
-  "waiting": pygame.image.load("sprites/face/waiting.png"),
-  "sad": pygame.image.load("sprites/face/sad.png")
-}
-
-counter_sprites = {
-  "0": pygame.image.load("sprites/counter/0.png"),
-  "1": pygame.image.load("sprites/counter/1.png"),
-  "2": pygame.image.load("sprites/counter/2.png"),
-  "3": pygame.image.load("sprites/counter/3.png"),
-  "4": pygame.image.load("sprites/counter/4.png"),
-  "5": pygame.image.load("sprites/counter/5.png"),
-  "6": pygame.image.load("sprites/counter/6.png"),
-  "7": pygame.image.load("sprites/counter/7.png"),
-  "8": pygame.image.load("sprites/counter/8.png"),
-  "9": pygame.image.load("sprites/counter/9.png")
-}
-
 # Game state variables
 grid = [] # Grid of cells
 mines = [] # List of tuples for mine locations
 mines_left = game_mines
 time = 0
+game_state = "play"
 
 class Button:
   def __init__(self):
@@ -173,7 +109,8 @@ class Cell:
 
 
   # Reveal single cell
-  def reveal_cell(self):
+  def reveal_cell(self) -> bool:
+    mine_hit = False
     if not self.clicked and not self.flagged:
       self.clicked = True
       if self.type == 0: # If cell is a 0, reveal adjacent cells
@@ -184,14 +121,18 @@ class Cell:
                 if not grid[self.y + j][self.x + i].clicked:
                   grid[self.y + j][self.x + i].reveal_cell()
       elif self.type == -1: # If cell is a mine, reveal all other mines
+        mine_hit = True
         for mine in mines:
           if not grid[mine[1]][mine[0]].clicked:
             grid[mine[1]][mine[0]].reveal_cell()
 
+    return mine_hit
 
   # Sweep cells around a clicked cell
-  def sweep_cell(self):
+  def sweep_cell(self) -> bool:
     flag_count = 0
+    mine_hit = False
+
     # Check adjacent cells for flags
     for i in range(-1, 2):
         if self.x + i >= 0 and self.x + i < game_width:
@@ -208,7 +149,10 @@ class Cell:
               if not grid[self.y + j][self.x + i].clicked:
                 if grid[self.y + j][self.x + i].type == -1:
                   grid[self.y + j][self.x + i].mine_clicked = True
+                  mine_hit = True
                 grid[self.y + j][self.x + i].reveal_cell()
+
+    return mine_hit
 
   # Draw cell to window
   def draw_cell(self):
@@ -218,24 +162,8 @@ class Cell:
           display_window.blit(cell_sprites["mine_clicked"], self.rect)
         else:
           display_window.blit(cell_sprites["mine"], self.rect)
-      elif self.type == 0:
-        display_window.blit(cell_sprites["empty"], self.rect)
-      elif self.type == 1:
-        display_window.blit(cell_sprites["1"], self.rect)
-      elif self.type == 2:
-        display_window.blit(cell_sprites["2"], self.rect)
-      elif self.type == 3:
-        display_window.blit(cell_sprites["3"], self.rect)
-      elif self.type == 4:
-        display_window.blit(cell_sprites["4"], self.rect)
-      elif self.type == 5:
-        display_window.blit(cell_sprites["5"], self.rect)
-      elif self.type == 6:
-        display_window.blit(cell_sprites["6"], self.rect)
-      elif self.type == 7:
-        display_window.blit(cell_sprites["7"], self.rect)
-      elif self.type == 8:
-        display_window.blit(cell_sprites["8"], self.rect)
+      else:
+        display_window.blit(cell_sprites[str(self.type)], self.rect)
     else:
       if self.flagged:
         display_window.blit(cell_sprites["flag"], self.rect)
@@ -303,7 +231,6 @@ def draw_timer():
   hund = time // 100000
   tens = (time - (hund * 100000)) // 10000
   ones = (time - (hund * 100000) - (tens * 10000)) // 1000
-  #print(str(time) + ": " + str(hund) + str(tens) + str(ones))
 
   display_window.blit(counter_sprites[str(hund)], timer_hund_rect)
   display_window.blit(counter_sprites[str(tens)], timer_tens_rect)
@@ -316,13 +243,24 @@ def draw_grid():
     for cell in row:
       cell.draw_cell()
 
+def check_win() -> bool:
+  win = True
+  for row in grid:
+    for cell in row:
+      if cell.type >= 0 and not cell.clicked:
+        win = False
+  
+  return win
+
 # Restart game
 def restart():
   global mines_left
   global time
+  global game_state
 
   mines_left = game_mines
   time = 0
+  game_state = "play"
   generate_grid()
   
 
@@ -330,6 +268,7 @@ def restart():
 def gameloop():
   global time
   global mines_left
+  global game_state
   run = True
   button = Button()
   generate_grid()
@@ -343,33 +282,43 @@ def gameloop():
           button.state = "pressed"
         else:
           button.state = "default"
-          for row in grid:
-            for cell in row:
-              if cell.rect.collidepoint(event.pos):
-                if event.button == 3: # Right-click
-                  if not cell.clicked:
-                    if cell.flagged: mines_left += 1
-                    else: mines_left -= 1
-                    cell.flagged = not cell.flagged
+          if game_state == "play":
+            for row in grid:
+              for cell in row:
+                if cell.rect.collidepoint(event.pos):
+                  if event.button == 3: # Right-click
+                    if not cell.clicked:
+                      if cell.flagged: mines_left += 1
+                      else: mines_left -= 1
+                      cell.flagged = not cell.flagged
                     
       elif event.type == pygame.MOUSEBUTTONUP:
         if button.rect.collidepoint(event.pos):
-          button.state = "default"
+          if game_state == "play":
+            button.state = "default"
           restart()
         else:
-          for row in grid:
-            for cell in row:
-              if cell.rect.collidepoint(event.pos):
-                if event.button == 1: # Left-click
-                  if not cell.flagged:
-                    cell.reveal_cell()
-                    if cell.type == -1:
-                      cell.mine_clicked = True
-                elif event.button == 2: # Middle-click
-                  if cell.clicked:
-                    cell.sweep_cell()
+          if game_state == "play":
+            for row in grid:
+              for cell in row:
+                if cell.rect.collidepoint(event.pos):
+                  if event.button == 1: # Left-click
+                    if not cell.flagged:
+                      if cell.reveal_cell():
+                        cell.mine_clicked = True
+                        game_state = "lose"
+                        button.state = "sad"
+                  elif event.button == 2: # Middle-click
+                    if cell.clicked:
+                      if cell.sweep_cell():
+                        game_state = "lose"
+                        button.state = "sad"
+
+    if check_win():
+      game_state = "won"
+      button.state = "won"
                 
-    if time < 999000: # Cap game timer at 999 seconds
+    if time < 999000 and game_state == "play": # Cap game timer at 999 seconds
       time += timer.get_time()
 
     draw_frame()
