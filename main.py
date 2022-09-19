@@ -64,6 +64,7 @@ mines = [] # List of tuples for mine locations
 mines_left = game_mines
 time = 0
 game_state = "play"
+initial_move = True
 
 class Button:
   def __init__(self):
@@ -146,7 +147,7 @@ class Cell:
         if self.x + i >= 0 and self.x + i < game_width:
           for j in range(-1, 2):
             if self.y + j >= 0 and self.y + j < game_height:
-              if not grid[self.y + j][self.x + i].clicked:
+              if not grid[self.y + j][self.x + i].clicked and not grid[self.y + j][self.x + i].flagged:
                 if grid[self.y + j][self.x + i].type == -1:
                   grid[self.y + j][self.x + i].mine_clicked = True
                   mine_hit = True
@@ -171,7 +172,19 @@ class Cell:
         display_window.blit(cell_sprites["default"], self.rect)
 
 # Grid generation
-def generate_grid():
+def generate__empty_grid():
+  mines.clear()
+  grid.clear()
+
+  # Generate board with mines
+  for j in range(game_height):
+    row = []
+    for i in range(game_width):
+      row.append (Cell(i, j, 0))
+    grid.append(row)
+
+
+def generate_grid(init_x, init_y):
   mines.clear()
   grid.clear()
 
@@ -179,7 +192,9 @@ def generate_grid():
   while len(mines) < game_mines:
     x = random.randint(0, game_width - 1)
     y = random.randint(0, game_height - 1)
-    if (x, y) not in mines: mines.append((x, y))
+    if (x, y) not in mines:
+      if x < init_x - 1 or x > init_x + 1 or y < init_y - 1 or y > init_y + 1:
+        mines.append((x, y))
 
   # Generate board with mines
   for j in range(game_height):
@@ -193,7 +208,6 @@ def generate_grid():
   for row in grid:
     for cell in row:
       cell.update_mine_count()
-
 
 # Print grid
 def print_grid():
@@ -257,21 +271,24 @@ def restart():
   global mines_left
   global time
   global game_state
+  global initial_move
 
   mines_left = game_mines
   time = 0
   game_state = "play"
-  generate_grid()
-  
+  initial_move = True
+  generate__empty_grid()
+
 
 # Main game loop
 def gameloop():
   global time
   global mines_left
   global game_state
+  global initial_move
   run = True
   button = Button()
-  generate_grid()
+  generate__empty_grid()
 
   while run:
     for event in pygame.event.get():
@@ -293,9 +310,8 @@ def gameloop():
                       cell.flagged = not cell.flagged
                     
       elif event.type == pygame.MOUSEBUTTONUP:
+        button.state = "default"
         if button.rect.collidepoint(event.pos):
-          if game_state == "play":
-            button.state = "default"
           restart()
         else:
           if game_state == "play":
@@ -303,11 +319,16 @@ def gameloop():
               for cell in row:
                 if cell.rect.collidepoint(event.pos):
                   if event.button == 1: # Left-click
-                    if not cell.flagged:
-                      if cell.reveal_cell():
-                        cell.mine_clicked = True
-                        game_state = "lose"
-                        button.state = "sad"
+                    if initial_move:
+                      generate_grid(cell.x, cell.y)
+                      cell.reveal_cell()
+                      initial_move = False
+                    else:
+                      if not cell.flagged:
+                        if cell.reveal_cell():
+                          cell.mine_clicked = True
+                          game_state = "lose"
+                          button.state = "sad"
                   elif event.button == 2: # Middle-click
                     if cell.clicked:
                       if cell.sweep_cell():
@@ -318,7 +339,7 @@ def gameloop():
       game_state = "won"
       button.state = "won"
                 
-    if time < 999000 and game_state == "play": # Cap game timer at 999 seconds
+    if time < 999000 and game_state == "play" and not initial_move: # Cap game timer at 999 seconds
       time += timer.get_time()
 
     draw_frame()
